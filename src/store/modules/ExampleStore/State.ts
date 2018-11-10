@@ -1,7 +1,9 @@
+import { Model } from '../../../class/index.d'
+
 export interface IExampleStoreState {
-  message: string
+  model: Model | null
 }
 
 export const state: IExampleStoreState = {
-  message: ''
+  model: null
 }

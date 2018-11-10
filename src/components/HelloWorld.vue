@@ -1,85 +1,6 @@
 <template>
   <div class="hello">
-    <h1>{{ welcomeMessage }}</h1>
-    <h2>Essential Links</h2>
-    <ul>
-      <li>
-        <a
-          href="https://vuejs.org"
-          target="_blank"
-        >
-          Core Docs
-        </a>
-      </li>
-      <li>
-        <a
-          href="https://forum.vuejs.org"
-          target="_blank"
-        >
-          Forum
-        </a>
-      </li>
-      <li>
-        <a
-          href="https://chat.vuejs.org"
-          target="_blank"
-        >
-          Community Chat
-        </a>
-      </li>
-      <li>
-        <a
-          href="https://twitter.com/vuejs"
-          target="_blank"
-        >
-          Twitter
-        </a>
-      </li>
-      <br>
-      <li>
-        <a
-          href="http://vuejs-templates.github.io/webpack/"
-          target="_blank"
-        >
-          Docs for This Template
-        </a>
-      </li>
-    </ul>
-    <h2>Ecosystem</h2>
-    <ul>
-      <li>
-        <a
-          href="http://router.vuejs.org/"
-          target="_blank"
-        >
-          vue-router
-        </a>
-      </li>
-      <li>
-        <a
-          href="http://vuex.vuejs.org/"
-          target="_blank"
-        >
-          vuex
-        </a>
-      </li>
-      <li>
-        <a
-          href="http://vue-loader.vuejs.org/"
-          target="_blank"
-        >
-          vue-loader
-        </a>
-      </li>
-      <li>
-        <a
-          href="https://github.com/vuejs/awesome-vue"
-          target="_blank"
-        >
-          awesome-vue
-        </a>
-      </li>
-    </ul>
+    nihao
   </div>
 </template>
 
@@ -88,15 +9,64 @@ import { Component, Vue } from 'vue-property-decorator'
 import { Action, Getter, namespace } from 'vuex-class'
 import { BindingHelpers } from 'vuex-class/lib/bindings'
 
+import { Model } from '../class/index.d'
+import { Vec4, Mat4 } from '../class/classes'
+
 const exampleStore: BindingHelpers = namespace('Example')
+
+interface IEye {
+  up: number[]
+  at: number[]
+  look: number[]
+  side: number[]
+}
 
 @Component
 export default class HelloWorld extends Vue {
-  @exampleStore.Getter public welcomeMessage!: string
-  @exampleStore.Action private setWelcomeMessage!: (msg: string) => void
+  @exampleStore.Getter public model!: Model
+  @exampleStore.Action private loadModel!: () => Promise<void>
+
+  private eye: IEye = {
+    up: [0, 1, 0],
+    look: [0, 0, 1],
+    side: [1, 0, 0],
+    at: [0, 0, 0]
+  }
+  private c: number[] = [0, 0, 0]
+
+  public transformation(): Mat4 {
+    const transformationUYN: Mat4 = new Mat4(
+      this.eye.up[0], this.eye.up[1], this.eye.up[2], 0,
+      this.eye.side[0], this.eye.side[1], this.eye.side[2], 0,
+      this.eye.look[0], this.eye.look[1], this.eye.look[2], 0,
+      0, 0, 0, 0
+    )
+    const transformationC: Mat4 = new Mat4(
+      1, 0, 0, -this.eye.at[0],
+      0, 1, 0, -this.eye.at[1],
+      0, 0, 1, -this.eye.at[2],
+      0, 0, 0, 0
+    )
+
+    return transformationUYN.mul(transformationC)
+  }
+
+  public async initModel (): Promise<void> {
+    await this.loadModel()
+    console.log(this.model)
+
+    const vertexes: Vec4[] = this.model.vertices
+    const transformation: Mat4 = this.transformation()
+    console.log(transformation.d)
+
+    // console.log(vertexes)
+    // for (const vert of vertexes) {
+    // }
+  }
 
   public mounted (): void {
-    this.setWelcomeMessage('Hello from vue-webpack-ts-template!')
+    this.initModel()
+    // this.initEye()
   }
 }
 </script>
