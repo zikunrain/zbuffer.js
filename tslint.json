@@ -24,7 +24,9 @@
     "number-literal-format": false,
     "radix": false,
     "ordered-imports": false,
-    "no-floating-promises": false
+    "no-floating-promises": false,
+    "no-any": false,
+    "max-classes-per-file": false
   },
   "linterOptions": {
     "exclude": [

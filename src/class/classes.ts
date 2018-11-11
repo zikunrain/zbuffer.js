@@ -55,3 +55,93 @@ export class Mat4 {
       return r
   }
 }
+
+export class NodePolygon {
+  public a: number
+  public b: number
+  public c: number
+  public d: number
+  public id: number
+  public dy: number
+
+  constructor(a: number, b: number, c: number, d: number, id: number, dy: number) {
+    this.a = a
+    this.b = b
+    this.c = c
+    this.d = d
+    this.id = id
+    this.dy = dy // number of line covered by polygon
+  }
+}
+
+export class ActiveNodePolygon {
+  public a: number
+  public b: number
+  public c: number
+  public d: number
+  public id: number
+  public dy: number
+
+  constructor(a: number, b: number, c: number, d: number, id: number, dy: number) {
+    this.a = a
+    this.b = b
+    this.c = c
+    this.d = d
+    this.id = id
+    this.dy = dy // number of line remained
+  }
+}
+
+export class NodeEdge {
+  public x: number
+  public dx: number
+  public dy: number
+  public id: number
+  public next!: NodeEdge | null
+
+  constructor(x: number, dx: number, dy: number, id: number, next: NodeEdge) {
+    this.x = x // x of upper point of edge
+    this.dx = dx //dx between two contunous lines
+    this.id = id
+    this.dy = dy // number of line covered by edge
+    this.next = next
+  }
+}
+
+export class ActiveNodeEdge {
+  public xl: number // x of left intersection
+  public dxl: number //dx of left edge between two contunous lines
+  public dyl: number // number of line remained
+
+  public xr: number // x of right intersection
+  public dxr: number //dx of right edge between two contunous lines
+  public dyr: number // number of line remained
+
+  public zl: number // z of left intersection
+  public dzx: number // -a/c c!=0
+  public dzy: number // b/c c!=0
+  public id: number
+
+  public next!: ActiveNodeEdge | null
+
+  constructor(
+    xl: number, dxl: number, dyl: number,
+    xr: number, dxr: number, dyr: number,
+    zl: number, dzx: number, dzy: number,
+    id: number, next: ActiveNodeEdge) {
+      this.xl = xl
+      this.dxl = dxl
+      this.dyl = dyl
+
+      this.xr = xr
+      this.dxr = dxr
+      this.dyr = dyr
+
+      this.zl = zl
+      this.dzx = dzx
+      this.dzy = dzy
+
+      this.id = id
+      this.next = next
+  }
+}

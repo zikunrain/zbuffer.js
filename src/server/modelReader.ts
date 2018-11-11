@@ -2,6 +2,7 @@ import { Vec4 } from '../class/classes'
 import { Model } from '../class/index.d'
 
 export function processModel(data: string): Model {
+  const scale: number = 100
   const m: Model = { vertices: [], faces: []}
   for (const l of data.split(/[\r]{0,1}\n/)) {
     if (!l.length) {
@@ -13,7 +14,7 @@ export function processModel(data: string): Model {
     }
     switch (cmd[0]) {
       case 'v':
-        m.vertices.push(new Vec4(parseFloat(cmd[1]), parseFloat(cmd[2]), parseFloat(cmd[3]), 1.))
+        m.vertices.push(new Vec4(parseFloat(cmd[1]) * scale, parseFloat(cmd[2]) * scale, parseFloat(cmd[3]) * scale, 1.))
         break
       case 'f':
         const start: number = parseInt(cmd[1]) - 1
