@@ -7,6 +7,15 @@ export class Vec4 {
     this.d[2] = z
     this.d[3] = w
   }
+
+  public sub(v: Vec4): Vec4 {
+    const retVec: Vec4 = new Vec4(0, 0, 0, 1)
+    retVec.d[0] = this.d[0] - v.d[0]
+    retVec.d[1] = this.d[1] - v.d[1]
+    retVec.d[2] = this.d[2] - v.d[2]
+
+    return retVec
+  }
 }
 
 export class Mat4 {

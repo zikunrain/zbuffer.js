@@ -13,7 +13,7 @@ import { Action, Getter, namespace } from 'vuex-class'
 import { BindingHelpers } from 'vuex-class/lib/bindings'
 
 import { Model } from '../class/index.d'
-import { Vec4, Mat4 } from '../class/classes'
+import { Vec4, Mat4, NodePolygon, NodeEdge } from '../class/classes'
 
 const exampleStore: BindingHelpers = namespace('Example')
 
@@ -54,7 +54,7 @@ export default class HelloWorld extends Vue {
     up: [Math.sqrt(6) / 6, Math.sqrt(6) / 3, Math.sqrt(6) / 6],
     look: [Math.sqrt(3) / 3, Math.sqrt(3) / 3, Math.sqrt(3) / 3],
     side: [Math.sqrt(2) / 2, 0, -Math.sqrt(2) / 2],
-    at: [0, 0, -5]
+    at: [-500, -500, -5]
   }
   private c: number[] = [0, 0, 0]
   private canvasHeight: number = 800
@@ -124,7 +124,54 @@ export default class HelloWorld extends Vue {
       buffer.push(line)
     }
 
+    // store polygon by height
+    const polygonIndex: { [height: string]: NodePolygon[] } = {}
+    const edgeIndex: { [height: string]: NodeEdge[] } = {}
+    let id: number = 0
+    for (const f of m.faces) {
+      const v1: Vec4 = m.vertices[f.v1]
+      const v2: Vec4 = m.vertices[f.v2]
+      const v3: Vec4 = m.vertices[f.v3]
+
+      const n: Vec4 = v1.sub(v2)
+      const a: number = n.d[0]
+      const b: number = n.d[1]
+      const c: number = n.d[2]
+
+      // find max and min vert by y
+      const maxV: Vec4 = v1.d[1] > v2.d[1]
+      ? (v1.d[1] > v3.d[1] ? v1 : v3)
+      : (v2.d[1] > v3.d[1] ? v2 : v3)
+      const minV: Vec4 = v1.d[1] > v2.d[1]
+      ? (v3.d[1] > v2.d[1] ? v2 : v3)
+      : (v1.d[1] < v3.d[1] ? v1 : v3)
+      // here
+
+      const d: number = -(a * v1.d[0] + b * v1.d[1] + c * v1.d[2])
+      const h: number = Math.max(Math.floor(v1.d[1]), Math.floor(v2.d[1]), Math.floor(v3.d[1]))
+      const dy: number = h - Math.min(Math.floor(v1.d[1]), Math.floor(v2.d[1]), Math.floor(v3.d[1]))
+      const p: NodePolygon = new NodePolygon(a, b, c, d, id, dy)
+      console.log(v1.d, v2.d, v3.d)
+      console.log(h)
+      if (!polygonIndex[h.toString()]) {
+        polygonIndex[h.toString()] = []
+      }
+      polygonIndex[h.toString()].push(p) // polygon
+
+      // for v1v2
+      const he: number = Math.max(Math.floor(v1.d[1]), Math.floor(v2.d[1]))
+      const dye: number = he - Math.min(Math.floor(v1.d[1]), Math.floor(v2.d[1]))
+
+      id += 1
+    }
+    console.log(polygonIndex)
+
     // scanning
+    for (let h: number = 0; h < this.canvasHeight; h += 1) {
+      if (polygonIndex[h]) {
+        // there are some polygon involved in the line
+      }
+    }
   }
 
   public getVertexesBounding(m: Model): IBouding {
