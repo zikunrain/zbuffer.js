@@ -16,6 +16,15 @@ export class Vec4 {
 
     return retVec
   }
+
+  public dot(v: Vec4): Vec4 {
+    const retVec: Vec4 = new Vec4(0, 0, 0, 1)
+    retVec.d[0] = this.d[1] * v.d[2] - this.d[2] * v.d[1]
+    retVec.d[1] = this.d[2] * v.d[0] - this.d[0] * v.d[2]
+    retVec.d[2] = this.d[0] * v.d[1] - this.d[1] * v.d[0]
+
+    return retVec
+  }
 }
 
 export class Mat4 {
@@ -106,13 +115,20 @@ export class NodeEdge {
   public dx: number
   public dy: number
   public id: number
-  public next!: NodeEdge | null
+  public z0: number
+  public dzx: number
+  public dzy: number
+  public next?: NodeEdge | null
 
-  constructor(x: number, dx: number, dy: number, id: number, next: NodeEdge) {
+  constructor(x: number, dx: number, dy: number, z0: number,
+    dzx: number, dzy: number, id: number, next?: NodeEdge) {
     this.x = x // x of upper point of edge
     this.dx = dx //dx between two contunous lines
     this.id = id
     this.dy = dy // number of line covered by edge
+    this.z0 = z0
+    this.dzx = dzx
+    this.dzy = dzy
     this.next = next
   }
 }
@@ -131,13 +147,13 @@ export class ActiveNodeEdge {
   public dzy: number // b/c c!=0
   public id: number
 
-  public next!: ActiveNodeEdge | null
+  public next?: ActiveNodeEdge | null
 
   constructor(
     xl: number, dxl: number, dyl: number,
     xr: number, dxr: number, dyr: number,
     zl: number, dzx: number, dzy: number,
-    id: number, next: ActiveNodeEdge) {
+    id: number, next?: ActiveNodeEdge) {
       this.xl = xl
       this.dxl = dxl
       this.dyl = dyl

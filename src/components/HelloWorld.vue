@@ -13,7 +13,8 @@ import { Action, Getter, namespace } from 'vuex-class'
 import { BindingHelpers } from 'vuex-class/lib/bindings'
 
 import { Model } from '../class/index.d'
-import { Vec4, Mat4, NodePolygon, NodeEdge } from '../class/classes'
+import { Vec4, Mat4, NodePolygon, NodeEdge, ActiveNodePolygon, ActiveNodeEdge } from '../class/classes'
+import { forEach } from 'lodash'
 
 const exampleStore: BindingHelpers = namespace('Example')
 
@@ -61,6 +62,10 @@ export default class HelloWorld extends Vue {
   private canvasWidth: number = 1400
   private ctx!: CanvasRenderingContext2D
   private message: any = ''
+  private polygonIndex: { [height: string]: NodePolygon[] } = {}
+  private edgeIndex: { [height: string]: {
+    [id: string] : NodeEdge[]
+  } } = {}
 
   public transformation(): Mat4 {
     const transformationUYN: Mat4 = new Mat4(
@@ -125,53 +130,110 @@ export default class HelloWorld extends Vue {
     }
 
     // store polygon by height
-    const polygonIndex: { [height: string]: NodePolygon[] } = {}
-    const edgeIndex: { [height: string]: NodeEdge[] } = {}
+    this.polygonIndex = {}
+    this.edgeIndex = {}
     let id: number = 0
     for (const f of m.faces) {
       const v1: Vec4 = m.vertices[f.v1]
       const v2: Vec4 = m.vertices[f.v2]
       const v3: Vec4 = m.vertices[f.v3]
 
-      const n: Vec4 = v1.sub(v2)
-      const a: number = n.d[0]
-      const b: number = n.d[1]
-      const c: number = n.d[2]
+      const n1: Vec4 = v1.sub(v2)
+      const n2: Vec4 = v1.sub(v3)
+      const abc: Vec4 = n1.dot(n2)
+      const a: number = abc.d[0]
+      const b: number = abc.d[1]
+      const c: number = abc.d[2]
+
+      if (c === 0) {
+        continue
+      }
+
+      const dzx: number = - a / c
+      const dzy: number = b / c
 
       // find max and min vert by y
-      const maxV: Vec4 = v1.d[1] > v2.d[1]
-      ? (v1.d[1] > v3.d[1] ? v1 : v3)
-      : (v2.d[1] > v3.d[1] ? v2 : v3)
-      const minV: Vec4 = v1.d[1] > v2.d[1]
-      ? (v3.d[1] > v2.d[1] ? v2 : v3)
-      : (v1.d[1] < v3.d[1] ? v1 : v3)
+      // const maxV: Vec4 = v1.d[1] > v2.d[1]
+      // ? (v1.d[1] > v3.d[1] ? v1 : v3)
+      // : (v2.d[1] > v3.d[1] ? v2 : v3)
+      // const minV: Vec4 = v1.d[1] > v2.d[1]
+      // ? (v3.d[1] > v2.d[1] ? v2 : v3)
+      // : (v1.d[1] < v3.d[1] ? v1 : v3)
       // here
 
       const d: number = -(a * v1.d[0] + b * v1.d[1] + c * v1.d[2])
       const h: number = Math.max(Math.floor(v1.d[1]), Math.floor(v2.d[1]), Math.floor(v3.d[1]))
       const dy: number = h - Math.min(Math.floor(v1.d[1]), Math.floor(v2.d[1]), Math.floor(v3.d[1]))
       const p: NodePolygon = new NodePolygon(a, b, c, d, id, dy)
-      console.log(v1.d, v2.d, v3.d)
-      console.log(h)
-      if (!polygonIndex[h.toString()]) {
-        polygonIndex[h.toString()] = []
+      if (!this.polygonIndex[h.toString()]) {
+        this.polygonIndex[h.toString()] = []
       }
-      polygonIndex[h.toString()].push(p) // polygon
+      this.polygonIndex[h.toString()].push(p) // polygon
 
-      // for v1v2
-      const he: number = Math.max(Math.floor(v1.d[1]), Math.floor(v2.d[1]))
-      const dye: number = he - Math.min(Math.floor(v1.d[1]), Math.floor(v2.d[1]))
+      // v1v2
+      this.getEdgeGivenTwoPoint(v1, v2, id, dzx, dzy)
+      this.getEdgeGivenTwoPoint(v3, v2, id, dzx, dzy)
+      this.getEdgeGivenTwoPoint(v1, v3, id, dzx, dzy)
 
       id += 1
     }
-    console.log(polygonIndex)
+
+    console.log(this.edgeIndex)
+    console.log(this.polygonIndex)
 
     // scanning
-    for (let h: number = 0; h < this.canvasHeight; h += 1) {
-      if (polygonIndex[h]) {
-        // there are some polygon involved in the line
+    const activeEdgeTable: { [polygonId: string]: ActiveNodeEdge } = {}
+    for (let h: number = this.canvasHeight - 1; h >= 0; h -= 1) {
+      const edgePairById: { [id: string]: NodeEdge[] } = this.edgeIndex[h.toString()]
+      if (Object.keys(edgePairById).length > 0) {
+        forEach(edgePairById, (edgePair: NodeEdge[], idstr: string) => {
+          const e1: NodeEdge = edgePair[0]
+          const e2: NodeEdge = edgePair[1]
+          const er: NodeEdge = (e1.x + e1.dx) > (e2.x + e2.dx) ? e1 : e2
+          const el: NodeEdge = (e1.x + e1.dx) > (e2.x + e2.dx) ? e2 : e1
+
+          const xl: number = el.x
+          const dxl: number = el.dx
+          const dyl: number = el.dy
+
+          const xr: number = er.x
+          const dxr: number = er.dx
+          const dyr: number = er.dy
+
+          const zl: number = el.z0
+          const dzx: number = el.dzx
+          const dzy: number = el.dzy
+
+          const id: number = parseInt(idstr)
+          activeEdgeTable[idstr] =
+            new ActiveNodeEdge(xl, dxl, dyl, xr, dxr, dxr, zl, dzx, dzx, id)
+
+        })
       }
     }
+  }
+
+  public getEdgeGivenTwoPoint(v1: Vec4, v2: Vec4, id: number, dzx: number, dzy: number): void {
+    const height: number = v2.d[1] > v2.d[1] ? Math.floor(v2.d[1]) : Math.floor(v1.d[1])
+    const z0: number = v2.d[1] > v2.d[1] ? Math.floor(v2.d[2]) : Math.floor(v1.d[2])
+    const xv1: number = v1.d[0]
+    const xv2: number = v2.d[0]
+    const xv1v2: number = v2.d[1] > v2.d[1] ? v2.d[0] : v1.d[0]
+    const yv1v2: number = v2.d[1] - v1.d[1]
+    const dxv1v2: number = xv1 - xv2 / yv1v2
+    const dyv1v2: number = Math.abs(Math.floor(v2.d[1]) - Math.floor(v1.d[1]))
+    const nodeEdge: NodeEdge = new NodeEdge(xv1v2, dxv1v2, dyv1v2, z0, dzx, dzy, id)
+
+    const heightStr: string = height.toString()
+    const idStr: string = id.toString()
+
+    if (!this.edgeIndex[heightStr]) {
+      this.edgeIndex[heightStr] = {}
+    }
+    if (!this.edgeIndex[heightStr][idStr]) {
+      this.edgeIndex[heightStr][idStr] = []
+    }
+    this.edgeIndex[heightStr][idStr].push(nodeEdge)
   }
 
   public getVertexesBounding(m: Model): IBouding {
