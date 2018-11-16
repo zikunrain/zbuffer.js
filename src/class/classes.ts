@@ -118,9 +118,10 @@ export class NodeEdge {
   public z0: number
   public dzx: number
   public dzy: number
-  public next?: NodeEdge | null
+  public next?: NodeEdge
 
-  constructor(x: number, dx: number, dy: number, z0: number,
+  constructor(
+    x: number, dx: number, dy: number, z0: number,
     dzx: number, dzy: number, id: number, next?: NodeEdge) {
     this.x = x // x of upper point of edge
     this.dx = dx //dx between two contunous lines
@@ -147,13 +148,14 @@ export class ActiveNodeEdge {
   public dzy: number // b/c c!=0
   public id: number
 
-  public next?: ActiveNodeEdge | null
+  public elnext?: NodeEdge
+  public ernext?: NodeEdge
 
   constructor(
     xl: number, dxl: number, dyl: number,
     xr: number, dxr: number, dyr: number,
     zl: number, dzx: number, dzy: number,
-    id: number, next?: ActiveNodeEdge) {
+    id: number, elnext?: NodeEdge, ernext?: NodeEdge) {
       this.xl = xl
       this.dxl = dxl
       this.dyl = dyl
@@ -167,6 +169,7 @@ export class ActiveNodeEdge {
       this.dzy = dzy
 
       this.id = id
-      this.next = next
+      this.elnext = elnext
+      this.ernext = ernext
   }
 }

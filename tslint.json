@@ -26,7 +26,8 @@
     "ordered-imports": false,
     "no-floating-promises": false,
     "no-any": false,
-    "max-classes-per-file": false
+    "max-classes-per-file": false,
+    "max-func-body-length": false
   },
   "linterOptions": {
     "exclude": [
