@@ -32,6 +32,8 @@ interface IBouding {
   minZ: number
 }
 
+type Irgb = number[]
+
 @Component
 export default class HelloWorld extends Vue {
   @exampleStore.Getter public model!: Model
@@ -56,8 +58,8 @@ export default class HelloWorld extends Vue {
     at: [-500, -500, -5]
   }
   private c: number[] = [0, 0, 0]
-  private canvasHeight: number = 800
-  private canvasWidth: number = 1400
+  private canvasHeight: number = 940
+  private canvasWidth: number = 1900
   private ctx!: CanvasRenderingContext2D
   private message: any = ''
   private polygonIndex: { [height: string]: NodePolygon[] } = {}
@@ -66,7 +68,7 @@ export default class HelloWorld extends Vue {
   } } = {}
   private buffer: number[][] = []
   private frame: number[][] = []
-  private edgeVisible: { [hx: string]: number } = {}
+  private colorBin: Irgb[] = []
 
   public transformation(): Mat4 {
     const transformationUYN: Mat4 = new Mat4(
@@ -90,7 +92,19 @@ export default class HelloWorld extends Vue {
 
     const vertexes: Vec4[] = this.model.vertices
     const transformation: Mat4 = this.transformation()
-    this.message = transformation.d
+
+    // initColor
+    const nf: number = this.model.faces.length
+    const colorBin: Irgb[] = []
+    for (let id: number = 0; id < nf; id += 1) {
+      const color: number = Math.floor(id * 255 / nf)
+      colorBin.push([
+        color,
+        color,
+        color
+      ])
+    }
+    this.colorBin = colorBin
 
     const transformedModel: Model = {
       vertices: [],
@@ -100,17 +114,8 @@ export default class HelloWorld extends Vue {
     for (const vert of vertexes) {
       const transformedVert: Vec4 = transformation.apply(vert)
       transformedModel.vertices.push(transformedVert)
-      // this.ctx.beginPath()
-      // this.ctx.strokeStyle = 'black'
-      // this.ctx.lineWidth = 1
-      // this.ctx.arc(transformedVert.d[1], transformedVert.d[0], 5, 0, Math.PI * 2, true)
-      // // take care
-      // this.ctx.fillStyle = 'red'
-      // this.ctx.fill()
     }
 
-    const bouding: IBouding = this.getVertexesBounding(transformedModel)
-    console.log(transformedModel)
     this.calculateZbuffer(transformedModel)
     this.draw()
   }
@@ -118,8 +123,6 @@ export default class HelloWorld extends Vue {
   public mounted (): void {
     const canvas: HTMLCanvasElement = <HTMLCanvasElement>document.getElementById('myCanvas')
     const ctx: CanvasRenderingContext2D = <CanvasRenderingContext2D>canvas.getContext('2d')
-    ctx.fillStyle = '#eee'
-    ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight)
     this.ctx = ctx
     this.initModel()
   }
@@ -130,9 +133,6 @@ export default class HelloWorld extends Vue {
     const stride: number = this.canvasWidth * 4
     for (let y: number = 0; y < this.canvasHeight; y += 1) {
       for (let x: number = 0; x < this.canvasWidth; x += 1) {
-        // if (this.buffer[y][x] > 0) {
-        //   console.log(x, y, this.buffer[y][x])
-        // }
         const offset: number = y * stride + x * 4
         const pid: number = this.frame[this.canvasHeight - 1 - y][x]
         if (pid < 0) {
@@ -140,24 +140,12 @@ export default class HelloWorld extends Vue {
           data[offset + 1] = 0
           data[offset + 2] = 0
           data[offset + 3] = 255
-        } else if (pid === 0) {
-          data[offset] = 0
-          data[offset + 1] = 200
-          data[offset + 2] = 0
-          data[offset + 3] = 255
-        } else if (pid === 8) {
-          data[offset] = 0
-          data[offset + 1] = 0
-          data[offset + 2] = 200
-          data[offset + 3] = 255
         } else {
-          data[offset] = pid * 10 + 80
-          data[offset + 1] = pid * 10 + 80
-          data[offset + 2] = pid * 10 + 80
+          data[offset] = this.colorBin[pid][0]
+          data[offset + 1] = this.colorBin[pid][1]
+          data[offset + 2] = this.colorBin[pid][2]
           data[offset + 3] = 255
         }
-        // const color: number = this.frame[this.canvasHeight - 1 - y][x]
-
       }
     }
     this.ctx.putImageData(image, 0, 0)
@@ -222,9 +210,7 @@ export default class HelloWorld extends Vue {
       const he3: { h: number, e: NodeEdge } = this.getEdgeGivenTwoPoint(midV, minV, id, dzx, dzy)
       const he1: { h: number, e: NodeEdge } = this.getEdgeGivenTwoPoint(maxV, midV, id, dzx, dzy, he3.e)
       const he2: { h: number, e: NodeEdge } = this.getEdgeGivenTwoPoint(maxV, minV, id, dzx, dzy)
-      console.log('edge.x', he3.e.x)
-      console.log('edge.x', he1.e.x)
-      console.log('edge.x', he2.e.x)
+
       this.setEdge(he1.h.toString(), id.toString(), he1.e)
       this.setEdge(he2.h.toString(), id.toString(), he2.e)
 
@@ -240,11 +226,11 @@ export default class HelloWorld extends Vue {
       // incrementally update z
       // console.log(activeEdgeTable)
       forEach(activeEdgeTable, (activeNodeEdge: ActiveNodeEdge, polygonId: string) => {
-        const xl: number = Math.floor(activeNodeEdge.xl) > Math.floor(activeNodeEdge.xr)
-          ? Math.floor(activeNodeEdge.xr)
+        const xl: number = Math.floor(activeNodeEdge.xl) > Math.ceil(activeNodeEdge.xr)
+          ? Math.ceil(activeNodeEdge.xr)
           : Math.floor(activeNodeEdge.xl)
-        const xr: number = Math.floor(activeNodeEdge.xl) < Math.floor(activeNodeEdge.xr)
-          ? Math.floor(activeNodeEdge.xr)
+        const xr: number = Math.floor(activeNodeEdge.xl) < Math.ceil(activeNodeEdge.xr)
+          ? Math.ceil(activeNodeEdge.xr)
           : Math.floor(activeNodeEdge.xl)
 
         const pid: number = activeNodeEdge.id
@@ -252,15 +238,9 @@ export default class HelloWorld extends Vue {
         const dzx: number = activeNodeEdge.dzx
 
         for (let x: number = xl; x <= xr; x += 1) {
-          if (pid === 0 || pid === 8 || pid === 1) {
-            console.log(h, pid, zl)
-          }
           if (buffer[h][x] < zl) {
             buffer[h][x] = zl
             frame[h][x] = pid
-            if (x === xr || x === xl) {
-              this.edgeVisible[`${h.toString()}_${x.toString()}`] = pid
-            }
           }
           zl += dzx
         }
@@ -270,7 +250,6 @@ export default class HelloWorld extends Vue {
         activeEdgeTable[polygonId].dyr = activeEdgeTable[polygonId].dyr - 1
         const dyl: number = activeEdgeTable[polygonId].dyl
         const dyr: number = activeEdgeTable[polygonId].dyr
-        // console.log('update', polygonId, dyl, dyr)
 
         activeEdgeTable[polygonId].xl = activeEdgeTable[polygonId].xl + activeEdgeTable[polygonId].dxl
         activeEdgeTable[polygonId].xr = activeEdgeTable[polygonId].xr + activeEdgeTable[polygonId].dxr
@@ -281,29 +260,19 @@ export default class HelloWorld extends Vue {
           delete activeEdgeTable[polygonId]
 
         } else if ((dyl < 0) && (dyr >= 0)) {
-
-          // console.log('replace', polygonId, dyl, dyr)
           // replace left edge
           const enext: NodeEdge = <NodeEdge>activeEdgeTable[polygonId].elnext
-          if (enext.dy === 0) {
-            delete activeEdgeTable[polygonId]
-          } else {
-            activeEdgeTable[polygonId].zl = enext.z0
-            activeEdgeTable[polygonId].xl = enext.x
-            activeEdgeTable[polygonId].dxl = enext.dx
-            activeEdgeTable[polygonId].dyl = enext.dy
-          }
+          activeEdgeTable[polygonId].zl = enext.z0
+          activeEdgeTable[polygonId].xl = enext.x
+          activeEdgeTable[polygonId].dxl = enext.dx
+          activeEdgeTable[polygonId].dyl = enext.dy + dyl
 
         } else if ((dyr < 0) && (dyl >= 0)) {
           // replace right edge
-          const enext: NodeEdge = <NodeEdge>activeEdgeTable[polygonId].elnext
-          if (enext.dy === 0) {
-            delete activeEdgeTable[polygonId]
-          } else {
-            activeEdgeTable[polygonId].xr = enext.x
-            activeEdgeTable[polygonId].dxr = enext.dx
-            activeEdgeTable[polygonId].dyr = enext.dy
-          }
+          const enext: NodeEdge = <NodeEdge>activeEdgeTable[polygonId].ernext
+          activeEdgeTable[polygonId].xr = enext.x
+          activeEdgeTable[polygonId].dxr = enext.dx
+          activeEdgeTable[polygonId].dyr = enext.dy + dyr
         }
       })
 
@@ -326,19 +295,6 @@ export default class HelloWorld extends Vue {
             er = next
           }
 
-          // if (el.dy === 0) {
-          //   // console.log('el.dy === 0')
-          //   el = <NodeEdge>el.next
-          //   // console.log(el.dy)
-          //   // console.log(er.dy)
-          // }
-          // if (er.dy === 0) {
-          //   // console.log('er.dy === 0')
-          //   er = <NodeEdge>er.next
-          // }
-
-          console.log(h, el.z0, er.z0, idstr, er, el)
-
           const elnext: NodeEdge | undefined = el.next
           const ernext: NodeEdge | undefined = er.next
 
@@ -357,15 +313,10 @@ export default class HelloWorld extends Vue {
           const pid: number = parseInt(idstr)
           activeEdgeTable[idstr] =
             new ActiveNodeEdge(xl, dxl, dyl, xr, dxr, dyr, zl, dzx, dzy, pid, elnext, ernext)
-
-          // console.log('pid', pid, 'activeNode', activeEdgeTable[idstr])
-          // if (pid === 0) {
-          //   console.log(xl, dxl, dyl, xr, dxr, dxr, zl, dzx, dzx, pid, elnext, ernext)
-          // }
         })
       }
     }
-    // console.log(buffer)
+
     this.buffer = buffer
     this.frame = frame
   }
@@ -374,18 +325,15 @@ export default class HelloWorld extends Vue {
     h: number, e: NodeEdge
     } {
     const height: number = Math.floor(v1.d[1])
-    const z0: number = Math.floor(v1.d[2])
+    const z0: number = v1.d[2]
     const xv1v2: number = v1.d[0]
-    const dyv1v2: number = Math.floor(v1.d[1]) - Math.floor(v2.d[1]) // === 0 ?
+    const dyv1v2: number = v1.d[1] - v2.d[1]
 
-    // const height: number = v2.d[1] > v2.d[1] ? Math.floor(v2.d[1]) : Math.floor(v1.d[1])
-    // const z0: number = v2.d[1] > v2.d[1] ? Math.floor(v2.d[2]) : Math.floor(v1.d[2])
-    // const xv1v2: number = v2.d[1] > v2.d[1] ? v2.d[0] : v1.d[0]
     const xv1: number = v1.d[0]
     const xv2: number = v2.d[0]
     const yv1v2: number = v2.d[1] - v1.d[1]
     const dxv1v2: number = (xv1 - xv2) / yv1v2
-    // const dyv1v2: number = Math.abs(Math.floor(v2.d[1]) - Math.floor(v1.d[1]))
+
     const nodeEdge: NodeEdge = new NodeEdge(xv1v2, dxv1v2, dyv1v2, z0, dzx, dzy, id, next)
 
     return {
@@ -402,42 +350,6 @@ export default class HelloWorld extends Vue {
       this.edgeIndex[hstr][idstr] = []
     }
     this.edgeIndex[hstr][idstr].push(e)
-  }
-
-  public getVertexesBounding(m: Model): IBouding {
-    const bouding: IBouding = {
-      maxX: -20000.0,
-      maxY: -20000.0,
-      maxZ: -20000.0,
-      minX: 20000.0,
-      minY: 20000.0,
-      minZ: 20000.0
-    }
-    for (const vert of m.vertices) {
-      const x: number = vert.d[0]
-      const y: number = vert.d[1]
-      const z: number = vert.d[2]
-      if (x > bouding.maxX) {
-        bouding.maxX = x
-      }
-      if (y > bouding.maxY) {
-        bouding.maxY = y
-      }
-      if (z > bouding.maxZ) {
-        bouding.maxZ = z
-      }
-      if (x < bouding.minX) {
-        bouding.minX = x
-      }
-      if (y < bouding.minY) {
-        bouding.minY = y
-      }
-      if (z < bouding.minZ) {
-        bouding.minZ = z
-      }
-    }
-
-    return bouding
   }
 }
 </script>

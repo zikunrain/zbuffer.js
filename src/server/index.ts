@@ -8,7 +8,7 @@ import { processModel } from './modelReader'
 import { Model } from '../class/index.d'
 
 let objModel: Model
-fs.readFile('data/cube.obj', (err: Error, data: Buffer) => {
+fs.readFile('data/body.obj', (err: Error, data: Buffer) => {
   if (err) {
     throw err
   }

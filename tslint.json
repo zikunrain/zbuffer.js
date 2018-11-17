@@ -27,7 +27,9 @@
     "no-floating-promises": false,
     "no-any": false,
     "max-classes-per-file": false,
-    "max-func-body-length": false
+    "max-func-body-length": false,
+    "cyclomatic-complexity": false,
+    "insecure-random": false
   },
   "linterOptions": {
     "exclude": [

@@ -2,7 +2,7 @@ import { Vec4 } from '../class/classes'
 import { Model } from '../class/index.d'
 
 export function processModel(data: string): Model {
-  const scale: number = 50
+  const scale: number = 500
   const m: Model = { vertices: [], faces: []}
   for (const l of data.split(/[\r]{0,1}\n/)) {
     if (!l.length) {
