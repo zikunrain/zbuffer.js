@@ -11,7 +11,7 @@ import { BindingHelpers } from 'vuex-class/lib/bindings'
 
 import { Model } from '../class/index.d'
 import { Vec4, Mat4, NodePolygon, NodeEdge, ActiveNodePolygon, ActiveNodeEdge } from '../class/classes'
-import { forEach, cloneDeep } from 'lodash'
+import { forEach, cloneDeep, isUndefined } from 'lodash'
 import { EBUSY } from 'constants';
 
 const exampleStore: BindingHelpers = namespace('Example')
@@ -72,16 +72,16 @@ export default class HelloWorld extends Vue {
 
   public transformation(): Mat4 {
     const transformationUYN: Mat4 = new Mat4(
-      this.eye.up[0], this.eye.up[1], this.eye.up[2], 0,
-      this.eye.side[0], this.eye.side[1], this.eye.side[2], 0,
-      this.eye.look[0], this.eye.look[1], this.eye.look[2], 0,
-      0, 0, 0, 1
+      this.eye.up[0], this.eye.up[1], this.eye.up[2], 0.0,
+      this.eye.side[0], this.eye.side[1], this.eye.side[2], 0.0,
+      this.eye.look[0], this.eye.look[1], this.eye.look[2], 0.0,
+      0.0, 0.0, 0.0, 1.0
     )
     const transformationC: Mat4 = new Mat4(
-      1, 0, 0, -this.eye.at[0],
-      0, 1, 0, -this.eye.at[1],
-      0, 0, 1, -this.eye.at[2],
-      0, 0, 0, 1
+      1.0, 0.0, 0.0, -this.eye.at[0],
+      0.0, 1.0, 0.0, -this.eye.at[1],
+      0.0, 0.0, 1.0, -this.eye.at[2],
+      0.0, 0.0, 0.0, 1.0
     )
 
     return transformationUYN.mul(transformationC)
@@ -135,12 +135,18 @@ export default class HelloWorld extends Vue {
       for (let x: number = 0; x < this.canvasWidth; x += 1) {
         const offset: number = y * stride + x * 4
         const pid: number = this.frame[this.canvasHeight - 1 - y][x]
+        const z: number = this.buffer[this.canvasHeight - 1 - y][x]
+        const c: number = z / 900 * 255
         if (pid < 0) {
           data[offset] = 0
           data[offset + 1] = 0
           data[offset + 2] = 0
           data[offset + 3] = 255
         } else {
+          // data[offset] = c
+          // data[offset + 1] = c
+          // data[offset + 2] = c
+          // data[offset + 3] = 255
           data[offset] = this.colorBin[pid][0]
           data[offset + 1] = this.colorBin[pid][1]
           data[offset + 2] = this.colorBin[pid][2]
@@ -166,11 +172,14 @@ export default class HelloWorld extends Vue {
     this.polygonIndex = {}
     this.edgeIndex = {}
     let id: number = 0
+    console.log(m.faces.length)
     for (const f of m.faces) {
+      // three vertices of f
       const v1: Vec4 = m.vertices[f.v1]
       const v2: Vec4 = m.vertices[f.v2]
       const v3: Vec4 = m.vertices[f.v3]
 
+      // plane equation can be determined by a b c
       const n1: Vec4 = v1.sub(v2)
       const n2: Vec4 = v1.sub(v3)
       const abc: Vec4 = n1.dot(n2)
@@ -178,7 +187,7 @@ export default class HelloWorld extends Vue {
       const b: number = abc.d[1]
       const c: number = abc.d[2]
 
-      if (c === 0) {
+      if (Math.abs(c) < 0.0001) {
         continue
       }
 
@@ -193,32 +202,35 @@ export default class HelloWorld extends Vue {
         ? (v3.d[1] > v2.d[1] ? v2 : v3)
         : (v1.d[1] < v3.d[1] ? v1 : v3)
       const midV: Vec4 = v1.d[1] > v2.d[1]
-        ? (v3.d[1] > v2.d[1] ? (v1.d[1] > v3.d[1] ? v3 : v2) : v2)
+        ? (v3.d[1] > v2.d[1] ? (v1.d[1] > v3.d[1] ? v3 : v1) : v2)
         : (v1.d[1] < v3.d[1] ? (v2.d[1] > v3.d[1] ? v3 : v2) : v1)
       // here
 
       const d: number = -(a * v1.d[0] + b * v1.d[1] + c * v1.d[2])
-      const h: number = Math.max(Math.floor(v1.d[1]), Math.floor(v2.d[1]), Math.floor(v3.d[1]))
-      const dy: number = h - Math.min(Math.floor(v1.d[1]), Math.floor(v2.d[1]), Math.floor(v3.d[1]))
+      const h: number = Math.max(v1.d[1], v2.d[1], v3.d[1])
+      const dy: number = h - Math.min(v1.d[1], v2.d[1], v3.d[1])
       const p: NodePolygon = new NodePolygon(a, b, c, d, id, dy)
       if (!this.polygonIndex[h.toString()]) {
         this.polygonIndex[h.toString()] = []
       }
       this.polygonIndex[h.toString()].push(p) // polygon
 
+      // if (Math.abs(maxV.d[1] - midV.d[1]) < 0.1) {
+      //   console.log(maxV.d[1], midV.d[1], minV.d[1], h, dy, id)
+      // }
+
       // v1v2
+      // console.log(minV.d[0], midV.d[0], maxV.d[0])
       const he3: { h: number, e: NodeEdge } = this.getEdgeGivenTwoPoint(midV, minV, id, dzx, dzy)
       const he1: { h: number, e: NodeEdge } = this.getEdgeGivenTwoPoint(maxV, midV, id, dzx, dzy, he3.e)
       const he2: { h: number, e: NodeEdge } = this.getEdgeGivenTwoPoint(maxV, minV, id, dzx, dzy)
 
       this.setEdge(he1.h.toString(), id.toString(), he1.e)
       this.setEdge(he2.h.toString(), id.toString(), he2.e)
+      // console.log(id, he1.e.x, he2.e.x, he3.e.x)
 
       id += 1
     }
-
-    console.log(this.edgeIndex)
-    console.log(this.polygonIndex)
 
     // scanning
     const activeEdgeTable: { [polygonId: string]: ActiveNodeEdge } = {}
@@ -237,7 +249,12 @@ export default class HelloWorld extends Vue {
         let zl: number = cloneDeep(activeNodeEdge.zl)
         const dzx: number = activeNodeEdge.dzx
 
+        // console.log(h, polygonId, xl, xr) // polygonId 10
+
+        // console.log(xl, xr)
+        // console.log(' ====== ')
         for (let x: number = xl; x <= xr; x += 1) {
+          // console.log(h, x, zl)
           if (buffer[h][x] < zl) {
             buffer[h][x] = zl
             frame[h][x] = pid
@@ -253,6 +270,7 @@ export default class HelloWorld extends Vue {
 
         activeEdgeTable[polygonId].xl = activeEdgeTable[polygonId].xl + activeEdgeTable[polygonId].dxl
         activeEdgeTable[polygonId].xr = activeEdgeTable[polygonId].xr + activeEdgeTable[polygonId].dxr
+        // console.log(polygonId, activeEdgeTable[polygonId].xl, activeEdgeTable[polygonId].xr, activeEdgeTable[polygonId].dxr)
         activeEdgeTable[polygonId].zl = activeEdgeTable[polygonId].zl + activeEdgeTable[polygonId].dzy +
           activeEdgeTable[polygonId].dzx * activeEdgeTable[polygonId].dxl
 
@@ -285,11 +303,11 @@ export default class HelloWorld extends Vue {
           let er: NodeEdge = (e1.x + e1.dx) > (e2.x + e2.dx) ? e1 : e2
           let el: NodeEdge = (e1.x + e1.dx) > (e2.x + e2.dx) ? e2 : e1
 
-          if (er.dx > 1000000) {
+          if (er.dx > 1000) {
             const next: NodeEdge = <NodeEdge>er.next
             er = el
             el = next
-          } else if (el.dx < -1000000) {
+          } else if (el.dx < -1000) {
             const next: NodeEdge = <NodeEdge>el.next
             el = er
             er = next
