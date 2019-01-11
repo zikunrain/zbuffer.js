@@ -22,6 +22,11 @@ export const actions: ActionTree<IExampleStoreState, IRootState> = {
   async loadModel(ctx: ActionContext<IExampleStoreState, IRootState>): Promise<void> {
     const resp: VueResource.HttpResponse = await Vue.http.post('/api/getModel')
     const body: GetModel.IResponse = await (<PromiseLike<GetModel.IResponse>>resp.json())
-    ctx.commit(MUTATIONS.SET_MODEL, body.model)
+    ctx.commit(MUTATIONS.SET_BODY_MODEL, body.model)
+  },
+  async loadModelCube(ctx: ActionContext<IExampleStoreState, IRootState>): Promise<void> {
+    const resp: VueResource.HttpResponse = await Vue.http.post('/api/getModelCube')
+    const body: GetModel.IResponse = await (<PromiseLike<GetModel.IResponse>>resp.json())
+    ctx.commit(MUTATIONS.SET_CUBE_MODEL, body.model)
   }
 }

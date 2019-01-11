@@ -1,5 +1,24 @@
 <template>
   <div class="hello">
+    <div class="menu">
+      <div class="obj-selection">
+        <div class="btn" :class="{ selected: 0 === modelIndex }"
+          @click="setModel(0)">
+          cube
+        </div>
+        <div class="btn" :class="{ selected: 1 === modelIndex }"
+          @click="setModel(1)">
+          body
+        </div>
+      </div>
+      <div class="eye-selection">
+        <div class="btn" v-for="i in [0,1,2]" :key="i"
+          :class="{ selected: i === eyeIndex }"
+          @click="setEye(i)">
+          {{ `eye${i}` }}
+        </div>
+      </div>
+    </div>
     <canvas id="myCanvas" :width="canvasWidth" :height="canvasHeight"></canvas>
   </div>
 </template>
@@ -36,30 +55,34 @@ type Irgb = number[]
 
 @Component
 export default class HelloWorld extends Vue {
-  @exampleStore.Getter public model!: Model
+  @exampleStore.State public cubeModel!: Model
+  @exampleStore.State public bodyModel!: Model
   @exampleStore.Action private loadModel!: () => Promise<void>
+  @exampleStore.Action private loadModelCube!: () => Promise<void>
 
-  // private eye: IEye = {
-  //   up: [0, 1, 0],
-  //   look: [0, 0, 1],
-  //   side: [1, 0, 0],
-  //   at: [-500, -500, -5]
-  // }
-  // private eye: IEye = {
-  //   up: [0, 1, 0],
-  //   look: [Math.sqrt(3) / 2, 0, Math.sqrt(1) / 2],
-  //   side: [Math.sqrt(1) / 2, 0, -Math.sqrt(3) / 2],
-  //   at: [-500, -500, -5]
-  // }
-  private eye: IEye = {
-    up: [Math.sqrt(6) / 6, Math.sqrt(6) / 3, Math.sqrt(6) / 6],
-    look: [Math.sqrt(3) / 3, Math.sqrt(3) / 3, Math.sqrt(3) / 3],
-    side: [Math.sqrt(2) / 2, 0, -Math.sqrt(2) / 2],
+  private modelIndex: number = 0
+  private eyes: IEye[] = [{
+      up: [Math.sqrt(6) / 6, Math.sqrt(6) / 3, Math.sqrt(6) / 6],
+      look: [Math.sqrt(3) / 3, Math.sqrt(3) / 3, Math.sqrt(3) / 3],
+      side: [Math.sqrt(2) / 2, 0, -Math.sqrt(2) / 2],
+      at: [-500, -500, -5]
+    }, {
+      up: [0, 1, 0],
+      look: [0, 0, 1],
+      side: [1, 0, 0],
+      at: [-500, -500, -5]
+    }, {
+    up: [0, 1, 0],
+    look: [Math.sqrt(3) / 2, 0, Math.sqrt(1) / 2],
+    side: [Math.sqrt(1) / 2, 0, -Math.sqrt(3) / 2],
     at: [-500, -500, -5]
-  }
+  }]
+  private eyeIndex: number = 0
+
+  private transformedModel?: Model
   private c: number[] = [0, 0, 0]
-  private canvasHeight: number = 940
-  private canvasWidth: number = 1900
+  private canvasHeight: number = 900
+  private canvasWidth: number = 1000
   private ctx!: CanvasRenderingContext2D
   private message: any = ''
   private polygonIndex: { [height: string]: NodePolygon[] } = {}
@@ -69,6 +92,34 @@ export default class HelloWorld extends Vue {
   private buffer: number[][] = []
   private frame: number[][] = []
   private colorBin: Irgb[] = []
+
+  get eye (): IEye {
+    return this.eyes[this.eyeIndex]
+  }
+
+  get model (): Model {
+    if (this.modelIndex === 0) {
+      return this.cubeModel
+    } else {
+      return this.bodyModel
+    }
+  }
+
+  public setModel(i: number): void {
+    if (this.modelIndex === i) {
+      return
+    }
+    this.modelIndex = i
+    this.reder()
+  }
+
+  public setEye(i: number): void {
+    if (this.eyeIndex === i) {
+      return
+    }
+    this.eyeIndex = i
+    this.reder()
+  }
 
   public transformation(): Mat4 {
     const transformationUYN: Mat4 = new Mat4(
@@ -87,9 +138,7 @@ export default class HelloWorld extends Vue {
     return transformationUYN.mul(transformationC)
   }
 
-  public async initModel (): Promise<void> {
-    await this.loadModel()
-
+  public transformModel () : void {
     const vertexes: Vec4[] = this.model.vertices
     const transformation: Mat4 = this.transformation()
 
@@ -115,8 +164,18 @@ export default class HelloWorld extends Vue {
       const transformedVert: Vec4 = transformation.apply(vert)
       transformedModel.vertices.push(transformedVert)
     }
+    this.transformedModel = transformedModel
+  }
 
-    this.calculateZbuffer(transformedModel)
+  public async initModel (): Promise<void> {
+    await this.loadModel()
+    await this.loadModelCube()
+    this.reder()
+  }
+
+  public reder (): void {
+    this.transformModel()
+    this.calculateZbuffer()
     this.draw()
   }
 
@@ -157,7 +216,8 @@ export default class HelloWorld extends Vue {
     this.ctx.putImageData(image, 0, 0)
   }
 
-  public calculateZbuffer(m: Model): void {
+  public calculateZbuffer(): void {
+    const m: Model = <Model>this.transformedModel
     const buffer: number[][] = []
     const frame: number[][] = []
     for (let h: number = 0; h < this.canvasHeight; h += 1) {
@@ -172,7 +232,7 @@ export default class HelloWorld extends Vue {
     this.polygonIndex = {}
     this.edgeIndex = {}
     let id: number = 0
-    console.log(m.faces.length)
+
     for (const f of m.faces) {
       // three vertices of f
       const v1: Vec4 = m.vertices[f.v1]
@@ -204,7 +264,6 @@ export default class HelloWorld extends Vue {
       const midV: Vec4 = v1.d[1] > v2.d[1]
         ? (v3.d[1] > v2.d[1] ? (v1.d[1] > v3.d[1] ? v3 : v1) : v2)
         : (v1.d[1] < v3.d[1] ? (v2.d[1] > v3.d[1] ? v3 : v2) : v1)
-      // here
 
       const d: number = -(a * v1.d[0] + b * v1.d[1] + c * v1.d[2])
       const h: number = Math.max(v1.d[1], v2.d[1], v3.d[1])
@@ -215,19 +274,13 @@ export default class HelloWorld extends Vue {
       }
       this.polygonIndex[h.toString()].push(p) // polygon
 
-      // if (Math.abs(maxV.d[1] - midV.d[1]) < 0.1) {
-      //   console.log(maxV.d[1], midV.d[1], minV.d[1], h, dy, id)
-      // }
-
       // v1v2
-      // console.log(minV.d[0], midV.d[0], maxV.d[0])
       const he3: { h: number, e: NodeEdge } = this.getEdgeGivenTwoPoint(midV, minV, id, dzx, dzy)
       const he1: { h: number, e: NodeEdge } = this.getEdgeGivenTwoPoint(maxV, midV, id, dzx, dzy, he3.e)
       const he2: { h: number, e: NodeEdge } = this.getEdgeGivenTwoPoint(maxV, minV, id, dzx, dzy)
 
       this.setEdge(he1.h.toString(), id.toString(), he1.e)
       this.setEdge(he2.h.toString(), id.toString(), he2.e)
-      // console.log(id, he1.e.x, he2.e.x, he3.e.x)
 
       id += 1
     }
@@ -236,7 +289,6 @@ export default class HelloWorld extends Vue {
     const activeEdgeTable: { [polygonId: string]: ActiveNodeEdge } = {}
     for (let h: number = this.canvasHeight - 1; h >= 0; h -= 1) {
       // incrementally update z
-      // console.log(activeEdgeTable)
       forEach(activeEdgeTable, (activeNodeEdge: ActiveNodeEdge, polygonId: string) => {
         const xl: number = Math.floor(activeNodeEdge.xl) > Math.ceil(activeNodeEdge.xr)
           ? Math.ceil(activeNodeEdge.xr)
@@ -373,7 +425,47 @@ export default class HelloWorld extends Vue {
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
+<style lang="scss">
+.menu {
+  height: 30px;
+  margin-bottom: 8px;
+  width: 100%;
+  position: relative;
+  display: flex;
+
+  .obj-selection {
+    position: relative;
+    flex: 2 1;
+    display: flex;
+  }
+
+  .eye-selection {
+    position: relative;
+    flex: 3 1;
+    display: flex;
+  }
+
+  .btn {
+    position: relative;
+    flex: 1 1;
+    height: 100%;
+    margin: 2px;
+    border-radius: 2px;
+    border: 1px solid #ddd;
+    background-color: #f7f7f7;
+    color: #333;
+    font-size: 16px;
+    line-height: 28px;
+    transition: 'background-color' 300ms;
+    cursor: pointer;
+  }
+
+  .selected {
+    background-color: #333 !important;
+    color: #fff !important;
+  }
+}
+
 h1, h2 {
   font-weight: normal;
 }
